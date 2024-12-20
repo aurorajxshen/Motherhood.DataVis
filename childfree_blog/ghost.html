@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHOST TAGS: Inside the Black Market</title>
+    <link rel="stylesheet" href="ghost.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="overlay">
+            <h1>GHOST TAGS</h1>
+            <p>Inside New York City’s Black Market for Temporary License Plates</p>
+            <p class="contributors">By John Doe | Photography by Jane Smith</p>
+        </div>
+    </header>
+
+    <main>
+        <section class="story-part">
+            <h2>Part 1: The Dealers</h2>
+            <p>The illicit trade of temporary license plates starts with the dealers...</p>
+            <img src="dealers.jpg" alt="Dealers">
+        </section>
+
+        <section class="story-part">
+            <h2>Part 2: The Landlords</h2>
+            <p>Landlords play a pivotal role in the ghost tags ecosystem...</p>
+            <img src="landlords.jpg" alt="Landlords">
+        </section>
+
+        <section class="story-part">
+            <h2>Part 3: The Buyers</h2>
+            <p>The buyers create demand, fueling the ghost tags market...</p>
+            <img src="buyers.jpg" alt="Buyers">
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2024 Streetsblog Projects | <a href="#">Contact Us</a></p>
+    </footer>
+</body>
+</html>
+
+<script>
+    // Smooth Scroll (if sections have IDs and a nav menu exists)
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+            behavior: 'smooth'
+        });
+    });
+});
+</script>

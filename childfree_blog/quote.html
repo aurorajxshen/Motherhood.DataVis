@@ -1,0 +1,55 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <link rel="stylesheet" href="styles.css">  
+    <title>Quote Popup</title>  
+</head>  
+<body>  
+    <button id="quoteButton">Show Quote</button>  
+    <div id="quotePopup" class="popup">  
+        <span class="close" id="closePopup">&times;</span>  
+        <p id="quoteText">"Your quote will appear here."</p>  
+    </div>  
+    <script src="script.js"></script>  
+</body>  
+</html>
+
+<style>
+    .popup {  
+    display: none;  
+    position: fixed;  
+    left: 50%;  
+    top: 50%;  
+    transform: translate(-50%, -50%);  
+    border: 1px solid #ccc;  
+    background-color: white;  
+    padding: 20px;  
+    z-index: 1000;  
+}  
+
+.popup .close {  
+    cursor: pointer;  
+    float: right;  
+    font-size: 20px;  
+}
+</style>
+
+<script>
+    const quotes = [  
+    "The only limit to our realization of tomorrow is our doubts of today.",  
+    "Life is 10% what happens to us and 90% how we react to it.",  
+    "The purpose of our lives is to be happy."  
+];  
+
+document.getElementById('quoteButton').onclick = function() {  
+    const randomIndex = Math.floor(Math.random() * quotes.length);  
+    document.getElementById('quoteText').innerText = quotes[randomIndex];  
+    document.getElementById('quotePopup').style.display = 'block';  
+};  
+
+document.getElementById('closePopup').onclick = function() {  
+    document.getElementById('quotePopup').style.display = 'none';  
+};
+</script>

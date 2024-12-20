@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Tooltip and Animated Chart</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f9f9f9;
+        }
+        svg {
+            width: 100%;
+            height: 100vh;
+        }
+        .node, .parent {
+            stroke: #fff;
+            stroke-width: 1px;
+            transition: transform 0.2s ease; /* Smooth animation for hover */
+        }
+        .parent:hover, .node:hover {
+            transform: scale(1.2); /* Scale up on hover */
+        }
+        /* Tooltip Design */
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;  /* Adjusted font size */
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Adds shadow for depth */
+            max-width: 250px;
+            pointer-events: none;
+        }
+        .tooltip:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -10px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent #333 transparent transparent;
+            transform: translateY(-50%);
+        }
+        .tooltip strong {
+            color: #ffcc00; /* Make the title stand out */
+        }
+    </style>
+</head>
+<body>
+    <div id="tooltip" class="tooltip"></div>
+    <svg></svg>
+
+    <script>
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const center = { x: width / 2, y: height / 2 };
+        const radius = Math.min(width, height) / 2 - 100;
+
+        const svg = d3.select("svg")
+            .append("g")
+            .attr("transform", `translate(${center.x}, ${center.y})`);
+
+        const tooltip = d3.select("#tooltip");
+
+        // Load CSV data
+        d3.csv("expanded_influential_comments_replies.csv").then(data => {
+            // Preprocess data
+            const parents = d3.groups(data, d => d.parent_comment_id);
+            const angleStep = (2 * Math.PI) / parents.length;
+
+            // Get all upvotes from all replies for global ranking
+            const allUpvotes = data.map(d => +d.reply_upvotes || 0);
+            const maxUpvotes = d3.max(allUpvotes);
+            const minUpvotes = d3.min(allUpvotes);
+
+            // Apply logarithmic scaling for radial positioning of replies
+            const logUpvoteScale = d3.scaleLog()
+                .domain([1, maxUpvotes])
+                .range([radius / 6, radius * 1.5]); // Radial distance scaling for replies
+
+            // Apply linear scaling for outer circles size (proportional to parent upvotes)
+            const parentSizeScale = d3.scaleLinear()
+                .domain([0, maxUpvotes]) // Mapping upvotes to the size scale
+                .range([20, 60]); // Adjust the range for parent circles
+
+            // Function to normalize upvotes for relative positioning
+            function normalizeUpvotes(upvotes) {
+                return (upvotes - minUpvotes) / (maxUpvotes - minUpvotes);
+            }
+
+            // Draw the network with animation
+            parents.forEach(([parentId, replies], i) => {
+                const angle = i * angleStep;
+                const xOuter = radius * Math.cos(angle);
+                const yOuter = radius * Math.sin(angle);
+
+                // Draw line from center to outer circle
+                svg.append("line")
+                    .attr("x1", 0)
+                    .attr("y1", 0)
+                    .attr("x2", xOuter)
+                    .attr("y2", yOuter)
+                    .attr("stroke", "#aaa")
+                    .attr("stroke-width", 1)
+                    .transition()
+                    .duration(1000) // Animation for lines
+                    .ease(d3.easeCubicOut)
+                    .attr("x2", xOuter)
+                    .attr("y2", yOuter);
+
+                // Draw outer parent circle (size proportional to upvotes)
+                const parent = replies[0]; // Representative parent
+                const parentCircleRadius = parentSizeScale(+parent.parent_upvotes || 0); // Using the linear scale for size
+                const parentCircle = svg.append("circle")
+                    .attr("cx", xOuter)
+                    .attr("cy", yOuter)
+                    .attr("r", 0) // Start with a radius of 0 for animation
+                    .attr("fill", "steelblue")
+                    .attr("class", "parent")
+                    .on("mouseover", () => showTooltip(parent.parent_comment_text, parent.parent_upvotes, parent.parent_degree_centrality))
+                    .on("mouseout", hideTooltip);
+
+                // Animate the parent circle to its final size
+                parentCircle.transition()
+                    .duration(1000) // Animation for parent circle size
+                    .ease(d3.easeElasticOut)
+                    .attr("r", parentCircleRadius);
+
+                // Sort replies by upvotes, and normalize the values
+                replies.sort((a, b) => d3.descending(+a.reply_upvotes || 0, +b.reply_upvotes || 0));
+
+                // Position replies based on normalized upvotes, relative to log scale
+                replies.forEach((reply, i) => {
+                    const normalizedUpvote = normalizeUpvotes(+reply.reply_upvotes || 0);
+                    const replyDistance = logUpvoteScale(+reply.reply_upvotes || 0);
+                    const angleOffset = (i * 0.05); // Angular offset to spread out the replies
+
+                    const xReply = replyDistance * Math.cos(angle + angleOffset); 
+                    const yReply = replyDistance * Math.sin(angle + angleOffset);
+
+                    // Reply nodes with animation
+                    svg.append("circle")
+                        .attr("cx", xReply)
+                        .attr("cy", yReply)
+                        .attr("r", 0) // Start with a radius of 0 for animation
+                        .attr("fill", "orange")
+                        .attr("class", "node")
+                        .on("mouseover", () => showTooltip(reply.reply_comment, reply.reply_upvotes, null))
+                        .on("mouseout", hideTooltip)
+                        .transition()
+                        .duration(1000) // Animation for reply nodes
+                        .ease(d3.easeElasticOut)
+                        .attr("r", 5);
+                });
+            });
+
+            // Tooltip functions
+            function showTooltip(text, upvotes, centrality) {
+                tooltip.transition().duration(200).style("opacity", 1);
+                tooltip.html(`
+                    <strong>Comment:</strong> ${text}<br>
+                    <strong>Upvotes:</strong> ${upvotes || "N/A"}<br>
+                    ${centrality ? `<strong>Centrality:</strong> ${centrality}` : ""}
+                `)
+                .style("left", (d3.event.pageX + 10) + "px")
+                .style("top", (d3.event.pageY - 20) + "px")
+                .style("transform", "translate(-50%, -50%)"); // Adjust tooltip for better alignment
+            }
+
+            function hideTooltip() {
+                tooltip.transition().duration(200).style("opacity", 0);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchical Layout</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f9f9f9;
+        }
+        svg {
+            width: 100%;
+            height: 100vh;
+        }
+        .node, .parent {
+            stroke: #fff;
+            stroke-width: 1px;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="tooltip" class="tooltip"></div>
+    <svg></svg>
+
+    <script>
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const center = { x: width / 2, y: height / 2 };
+        const radius = Math.min(width, height) / 2 - 100;
+
+        const svg = d3.select("svg")
+            .append("g")
+            .attr("transform", `translate(${center.x}, ${center.y})`);
+
+        const tooltip = d3.select("#tooltip");
+
+        // Load CSV data
+        d3.csv("expanded_influential_comments_replies.csv").then(data => {
+            // Preprocess data
+            const parents = d3.groups(data, d => d.parent_comment_id);
+            const angleStep = (2 * Math.PI) / parents.length;
+
+            // Get all upvotes from all replies for global ranking
+            const allUpvotes = data.map(d => +d.reply_upvotes || 0);
+            
+            // Apply hierarchical layout based on upvotes
+            const hierarchicalScale = d3.scaleLinear()
+                .domain([0, d3.max(allUpvotes)])
+                .range([radius / 6, radius * 1.5]);
+
+            // Function to normalize upvotes for relative positioning
+            function normalizeUpvotes(upvotes) {
+                return (upvotes - d3.min(allUpvotes)) / (d3.max(allUpvotes) - d3.min(allUpvotes));
+            }
+
+            // Draw the network
+            parents.forEach(([parentId, replies], i) => {
+                const angle = i * angleStep;
+                const xOuter = radius * Math.cos(angle);
+                const yOuter = radius * Math.sin(angle);
+
+                // Draw line from center to outer circle
+                svg.append("line")
+                    .attr("x1", 0)
+                    .attr("y1", 0)
+                    .attr("x2", xOuter)
+                    .attr("y2", yOuter)
+                    .attr("stroke", "#aaa")
+                    .attr("stroke-width", 1);
+
+                // Draw outer parent circle
+                const parent = replies[0]; // Representative parent
+                const parentCircleRadius = 40;
+                svg.append("circle")
+                    .attr("cx", xOuter)
+                    .attr("cy", yOuter)
+                    .attr("r", parentCircleRadius)
+                    .attr("fill", "steelblue")
+                    .attr("class", "parent")
+                    .on("mouseover", () => showTooltip(parent.parent_comment_text, parent.parent_upvotes, parent.parent_degree_centrality))
+                    .on("mouseout", hideTooltip);
+
+                // Sort replies by upvotes
+                replies.sort((a, b) => d3.descending(+a.reply_upvotes || 0, +b.reply_upvotes || 0));
+
+                replies.forEach((reply, i) => {
+                    const replyDistance = hierarchicalScale(+reply.reply_upvotes || 0);
+                    const normalizedUpvote = normalizeUpvotes(+reply.reply_upvotes || 0);
+                    const xReply = replyDistance * Math.cos(angle + (i * 0.05)); 
+                    const yReply = replyDistance * Math.sin(angle + (i * 0.05));
+
+                    svg.append("circle")
+                        .attr("cx", xReply)
+                        .attr("cy", yReply)
+                        .attr("r", 5)
+                        .attr("fill", "orange")
+                        .attr("class", "node")
+                        .on("mouseover", () => showTooltip(reply.reply_comment, reply.reply_upvotes, null))
+                        .on("mouseout", hideTooltip);
+                });
+            });
+
+            function showTooltip(text, upvotes, centrality) {
+                tooltip.transition().duration(200).style("opacity", 1);
+                tooltip.html(`
+                    <strong>${text}</strong><br>
+                    Upvotes: ${upvotes || "N/A"}<br>
+                    ${centrality ? `Centrality: ${centrality}` : ""}
+                `)
+                .style("left", (d3.event.pageX + 10) + "px")
+                .style("top", (d3.event.pageY - 20) + "px");
+            }
+
+            function hideTooltip() {
+                tooltip.transition().duration(200).style("opacity", 0);
+            }
+        });
+    </script>
+</body>
+</html>
